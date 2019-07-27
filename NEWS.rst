@@ -33,6 +33,7 @@ possible, especially the following contributors:
 - Mustafa Anil Tuncel
 - Peter Cock
 - Sergio Valqui
+- Spencer Bliven
 
 
 16 July 2019: Biopython 1.74
