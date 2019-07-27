@@ -142,6 +142,10 @@ other optional Python dependencies, which can be installed later if needed:
   MySQL database. It is supported by Python 2.7, Python 3.5 and above, PyPy 2,
   and PyPy 3.
 
+- mmtf-python, see https://github.com/rcsb/mmtf-python (optional)
+  This is required for using the compact MMTF format for protein structures.
+  It adds features to the Bio.PDB.PDBIO and Bio.PDB.mmtf packages.
+
 Note that some of these libraries are not available for PyPy or Jython,
 and not all are available for Python 3 yet either.
 
