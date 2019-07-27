@@ -61,7 +61,7 @@ from .HSExposure import HSExposureCA, HSExposureCB, ExposureCN
 from .FragmentMapper import FragmentMapper
 
 # Write out chain(start-end) to PDB file
-from .Dice import extract
+from .Dice import extract, extract_to_structure
 
 # Fast atom neighbor search
 # Depends on KDTree C++ module
