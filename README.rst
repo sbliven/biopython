@@ -146,6 +146,9 @@ other optional Python dependencies, which can be installed later if needed:
   This is required for using the compact MMTF format for protein structures.
   It adds features to the Bio.PDB.PDBIO and Bio.PDB.mmtf packages.
 
+- pyparsing, see https://github.com/pyparsing/pyparsing/ (optional)
+  This is required to use Bio.PDB.MolQL.
+
 Note that some of these libraries are not available for PyPy or Jython,
 and not all are available for Python 3 yet either.
 

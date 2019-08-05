@@ -66,6 +66,15 @@ from .Dice import extract, extract_to_structure
 # Fast atom neighbor search
 # Depends on KDTree C++ module
 try:
+    import Bio.PDB.kdtrees.KDTree as _
     from .NeighborSearch import NeighborSearch
+except ImportError:
+    pass
+
+# MolQL selection language
+# Depends on pyparsing
+try:
+    import pyparsing as _
+    from .MolQL import MolQL, ResRange
 except ImportError:
     pass
