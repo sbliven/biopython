@@ -70,11 +70,3 @@ try:
     from .NeighborSearch import NeighborSearch
 except ImportError:
     pass
-
-# MolQL selection language
-# Depends on pyparsing
-try:
-    import pyparsing as _
-    from .MolQL import MolQL, ResRange
-except ImportError:
-    pass

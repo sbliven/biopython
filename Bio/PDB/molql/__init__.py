@@ -11,6 +11,8 @@ See http://molql.org/
 """
 import warnings
 import re
+import json
+
 
 try:
     import pyparsing as pp
@@ -19,9 +21,9 @@ except ImportError:
     raise MissingPythonDependencyError("Install pyparsing to use MolQL "
                                        "(e.g. pip install pyparsing)")
 
-from .. import BiopythonWarning
-from . import Select
-from . import extract_to_structure
+from ... import BiopythonWarning, __version__
+from .. import Select
+from .. import extract_to_structure
 
 
 _hydrogen = re.compile("[123 ]*H.*")
@@ -132,6 +134,100 @@ class ChainSelector(Select):
             return 0
         else:
             return 1
+
+
+class MolQLAST(object):
+    def __init__(self, head, children=[]):
+        self.head = head
+        self.children = children
+
+    def to_molql(self, indent=None):
+        """Output in MolQL lisp-like format"""
+        pretty = indent is not None
+        tokens = []
+        if pretty:
+            tokens.append(" "*indent)
+        tokens.extend(("(", self.head))
+        if len(self.children) > 0:
+            if pretty:
+                tokens.append("\n")
+            else:
+                tokens.append(" ")
+            for child in self.children:
+                if isinstance(child, MolQLAST):
+                    tokens.extend(child.to_molql(pretty, indent+2))
+                else:
+                    if pretty:
+                        tokens.append(" "*(indent+2))
+                        tokens.append(repr(child))
+                        tokens.append("\n")
+            if pretty:
+                tokens.append(" "*indent)
+        tokens.append(")")
+        if pretty:
+            tokens.append("\n")
+
+        return "".join(tokens)
+
+    def _to_json_dict(self):
+        d = {"head": self.head}
+        if len(self.children) > 0:
+            d["args"] = [child._to_json_dict() if isinstance(child, MolQLAST) else child
+                         for child in self.children]
+        return d
+
+    def to_json(self, indent=None):
+        d = {"source": "BioPython %s" % __version__,
+             "version": "0.1.0",
+             "expression": self._to_json_dict()
+        }
+        return json.dumps(d, indent=indent)
+
+    def __str__(self):
+        return self.to_molql()
+
+    def __repr__(self):
+        return self.to_molql()
+
+
+class MolQLFormatError(ValueError):
+    """Indicates an error parsing a MolQL query"""
+    pass
+
+
+def parse_json(query):
+    """Parse a MolQL query from JSON format.
+
+    Arguments:
+    - json (string or file-like): json input
+
+    """
+    if isinstance(query, str):
+        jsonDict = json.loads(query)
+    else:
+        jsonDict = json.load(query)
+
+    # Currently ignore source and version information
+    if "expression" not in jsonDict:
+        raise MolQLFormatError("Illegal MolQL query (JSON). Missing 'expression'")
+
+    def parse_expression(node):
+        if isinstance(node, dict):
+            if "head" not in node:
+                raise MolQLFormatError("Illegal MolQL query (JSON). Missing 'head'")
+            if "args" not in node:
+                return MolQLAST(node["head"])
+            else:
+                return MolQLAST(node["head"], [parse_expression(n) for n in node["args"]])
+        else:
+            return node  # leaf
+
+    return parse_expression(jsonDict["expression"])
+
+
+
+
+
 
 
 class MolQL(object):

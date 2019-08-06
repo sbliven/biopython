@@ -6,7 +6,7 @@
 """Unit tests for the Bio.PDB.MolQL package"""
 import unittest
 from io import BytesIO
-from Bio.PDB.MolQL import MolQL, rangesBNF, ResRange
+from Bio.PDB.MolQL import MolQL, rangesBNF, ResRange, parse_json
 from Bio.PDB import PDBParser
 from Bio.PDB import PDBIO
 from Bio.PDB import Dice
@@ -72,6 +72,85 @@ class DiceTests(unittest.TestCase):
         self.assertEqual(len(file_pdb_molql.getvalue()),
             len(file_pdb_extract.getvalue()))
         self.assertEqual(file_pdb_molql.getvalue(), file_pdb_extract.getvalue())
+
+    def test_json(self):
+        json_example1 = """{
+          "source": "molql-explorer",
+          "version": "0.1.0",
+          "expression": {
+            "head": "structure.generator.atom-groups",
+            "args": {
+              "residue-test": {
+                "head": "core.rel.eq",
+                "args": [
+                  {
+                    "head": "structure.atom-property.macromolecular.auth_comp_id"
+                  },
+                  "ALA"
+                ]
+              },
+              "atom-test": {
+                "head": "core.set.has",
+                "args": [
+                  {
+                    "head": "core.type.set",
+                    "args": [
+                      {
+                        "head": "structure.type.element-symbol",
+                        "args": [
+                          "C"
+                        ]
+                      },
+                      {
+                        "head": "structure.type.element-symbol",
+                        "args": [
+                          "N"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "head": "structure.atom-property.core.element-symbol"
+                  }
+                ]
+              }
+            }
+          }
+        }
+        """
+        json_example2 = """{
+          "source": "molql-explorer",
+          "version": "0.1.0",
+          "expression": {
+            "head": "structure.generator.atom-groups",
+            "args": {
+              "residue-test": {
+                "head": "core.rel.eq",
+                "args": [
+                  {
+                    "head": "structure.atom-property.macromolecular.label_comp_id"
+                  },
+                  "ALA"
+                ]
+              }
+            }
+          }
+        }"""
+        # Test that examples parse without errors
+
+
+
+    def test_molql_lisp(self):
+        lisp_example1 = """(structure.generator.atom-groups
+  :residue-test (core.rel.eq
+    (structure.atom-property.macromolecular.auth_comp_id)
+    ALA)
+  :atom-test (core.set.has
+    (core.type.set
+      (structure.type.element-symbol C)
+      (structure.type.element-symbol N))
+    (structure.atom-property.core.element-symbol)))
+"""
 
 
 if __name__ == '__main__':
