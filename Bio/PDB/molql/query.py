@@ -6,9 +6,9 @@ import re
 from ... import BiopythonWarning
 from .. import Select
 from .. import extract_to_structure
-from . import ranges_script
-
-_hydrogen = re.compile("[123 ]*H.*")
+from . import syntax
+# Make sure all known syntax modules are loaded
+from . import json_script, molql_script, range_script
 
 
 class ChainSelector(Select):
@@ -17,6 +17,8 @@ class ChainSelector(Select):
     and between start and end. Remove hydrogens, waters and ligands.
     Only use model 0 by default.
     """
+    _hydrogen = re.compile("[123 ]*H.*")
+
     def __init__(self, ranges):
         """"""
         self.ranges = ranges
@@ -45,7 +47,7 @@ class ChainSelector(Select):
         """Verify if atoms are not Hydrogen."""
         # atoms - get rid of hydrogens
         name = atom.get_id()
-        if _hydrogen.match(name):
+        if ChainSelector._hydrogen.match(name):
             return 0
         else:
             return 1
@@ -55,6 +57,19 @@ class MolQL(object):
     """Represent a molecular query. Queries can be created from a variety
     of selection syntaxes. Queries can then be applied to Bio.PDB.Structure
     objects to reduce to the selected substructure.
+
+    Supported formats
+    -----------------
+    MolQL can be extended with additional formats. The complete list of formats
+    can be accessed with `molql.syntax.get_syntaxes()`. Some standard formats:
+
+    - *auto* Auto-detect the format (not recommended)
+    - *range* Simple residue range format. Example: "A.1-10"
+    - *molql* MolQL Lisp-like
+    - *json* MolQL JSON
+    - *pymol* Pymol syntax
+    - *jmol* Jmol syntax
+    - *vmd* VMD syntax
 
     Examples
     --------
@@ -74,28 +89,18 @@ class MolQL(object):
     def __init__(self, query, format="auto"):
         """Create a new query object.
 
-        Supported formats:
-        - *range* Simple residue range format. Example: "A.1-10"
-
-        Planned formats:
-        - *auto* Auto-detect format (not recommended)
-        - *molql* MolQL Lisp-like
-        - *json* MolQL JSON
-        - *pymol* Pymol syntax
-        - *jmol* Jmol syntax
-        - *vmd* VMD syntax
-
+        Typical use is to specify the query and format. In this case the query
+        is parsed according to the
         Args:
         - query (str): selection query
         - format (str): Format of the query (case insensitive)
         """
-        if format.lower() == "range":
-            # TODO convert to expression
-            self.resRanges = ranges_script.rangesBNF().parseString(query)
-        elif format.lower() == "json":
-            self.expression = None  # TODO
-        else:
+        try:
+            parser = syntax.get_syntax(format)
+        except KeyError:
             raise ValueError("Unsupported query format: %s" % format)
+
+        self.expression = parser.loads(query)
 
     def __call__(self, structure):
         """Evaluate query on a structure
@@ -107,8 +112,27 @@ class MolQL(object):
         Bio.PDB.Structure: result of the query
         """
         # TODO stub
-        if self.resRanges is None:
+        if self.expression is None:
             return structure
         else:
+            # TODO Broken! 'ranges' misuses the expression to store a list of ResRange
+            return extract_to_structure(structure, ChainSelector(self.expression))
 
-            return extract_to_structure(structure, ChainSelector(self.resRanges))
+    def dump(self, fp, format, **kw):
+        try:
+            parser = syntax.get_syntax(format)
+        except KeyError:
+            raise ValueError("Unsupported query format: %s" % format)
+
+        parser.dump(self.expression, fp, **kw)
+
+    def dumps(self, format, **kw):
+        try:
+            parser = syntax.get_syntax(format)
+        except KeyError:
+            raise ValueError("Unsupported query format: %s" % format)
+
+        return parser.dumps(self.expression, **kw)
+
+    def __str__(self):
+        return self.dumps('molql')

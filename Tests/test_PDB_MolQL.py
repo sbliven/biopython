@@ -5,14 +5,16 @@
 # package.
 """Unit tests for the Bio.PDB.MolQL package"""
 import unittest
+import json
 from io import BytesIO
-from Bio.PDB.MolQL import MolQL, rangesBNF, ResRange, parse_json
+from Bio.PDB.molql import MolQL
+from Bio.PDB.molql.range_script import rangesBNF, ResRange
 from Bio.PDB import PDBParser
 from Bio.PDB import PDBIO
 from Bio.PDB import Dice
 
 
-class DiceTests(unittest.TestCase):
+class MolQLTests(unittest.TestCase):
     """Tests for PDB.MolQL module."""
 
     def test_ranges_parsing(self):
@@ -74,70 +76,99 @@ class DiceTests(unittest.TestCase):
         self.assertEqual(file_pdb_molql.getvalue(), file_pdb_extract.getvalue())
 
     def test_json(self):
-        json_example1 = """{
-          "source": "molql-explorer",
-          "version": "0.1.0",
-          "expression": {
-            "head": "structure.generator.atom-groups",
-            "args": {
-              "residue-test": {
-                "head": "core.rel.eq",
-                "args": [
-                  {
-                    "head": "structure.atom-property.macromolecular.auth_comp_id"
-                  },
-                  "ALA"
-                ]
-              },
-              "atom-test": {
-                "head": "core.set.has",
-                "args": [
-                  {
-                    "head": "core.type.set",
-                    "args": [
-                      {
-                        "head": "structure.type.element-symbol",
-                        "args": [
-                          "C"
-                        ]
-                      },
-                      {
-                        "head": "structure.type.element-symbol",
-                        "args": [
-                          "N"
-                        ]
-                      }
-                    ]
-                  },
-                  {
-                    "head": "structure.atom-property.core.element-symbol"
-                  }
-                ]
-              }
+
+        json_example2 = """{
+            "source": "molql-explorer",
+            "version": "0.1.0",
+            "expression": {
+                "head": "structure.generator.atom-groups",
+                "args": {
+                    "residue-test": {
+                        "head": "core.rel.eq",
+                        "args": {
+                            "0": {
+                                "head": "structure.atom-property.macromolecular.label_comp_id"
+                            },
+                            "1": "ALA"
+                        }
+                    }
+                }
             }
-          }
+        }"""
+
+        query = MolQL(json_example2, "json")
+
+        # Test writing
+        j = query.dumps("json")
+
+        expected_dict = json.loads(json_example2)
+        result_dict = json.loads(j)
+
+        # ignore source
+        del expected_dict["source"]
+        del result_dict["source"]
+
+        self.assertDictEqual(result_dict, expected_dict)
+
+        json_example1 = """{
+            "source": "molql-explorer",
+            "version": "0.1.0",
+            "expression": {
+                "head": "structure.generator.atom-groups",
+                "args": {
+                    "residue-test": {
+                        "head": "core.rel.eq",
+                        "args": {
+                            "0": {
+                                "head": "structure.atom-property.macromolecular.auth_comp_id"
+                            },
+                            "1": "ALA"
+                        }
+                    },
+                    "atom-test": {
+                        "head": "core.set.has",
+                        "args": {
+                            "0": {
+                                "head": "core.type.set",
+                                "args": {
+                                    "0": {
+                                        "head": "structure.type.element-symbol",
+                                        "args": {
+                                            "0": "C"
+                                        }
+                                    },
+                                    "1": {
+                                        "head": "structure.type.element-symbol",
+                                        "args": {
+                                            "0": "N"
+                                        }
+                                    }
+                                }
+                            },
+                            "1": {
+                                "head": "structure.atom-property.core.element-symbol"
+                            }
+                        }
+                    }
+                }
+            }
         }
         """
-        json_example2 = """{
-          "source": "molql-explorer",
-          "version": "0.1.0",
-          "expression": {
-            "head": "structure.generator.atom-groups",
-            "args": {
-              "residue-test": {
-                "head": "core.rel.eq",
-                "args": [
-                  {
-                    "head": "structure.atom-property.macromolecular.label_comp_id"
-                  },
-                  "ALA"
-                ]
-              }
-            }
-          }
-        }"""
-        # Test that examples parse without errors
 
+        # Test parsing
+        query = MolQL(json_example1, "json")
+
+        # Test writing
+        j = query.dumps("json")
+
+        expected_dict = json.loads(json_example1)
+        result_dict = json.loads(j)
+
+        # ignore source
+        del expected_dict["source"]
+        del result_dict["source"]
+
+        self.assertDictEqual(result_dict, expected_dict)
 
 
     def test_molql_lisp(self):

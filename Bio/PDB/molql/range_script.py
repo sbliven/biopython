@@ -1,14 +1,14 @@
 """Parse 'ranges' MolQL format
 
 """
-
-
 try:
     import pyparsing as pp
 except ImportError:
     from Bio import MissingPythonDependencyError
     raise MissingPythonDependencyError("Install pyparsing to use MolQL "
                                        "(e.g. pip install pyparsing)")
+
+from . import syntax
 
 
 # Singleton
@@ -76,3 +76,23 @@ class ResRange(object):
 
     def __repr__(self):
         return str(self)
+
+
+class RangeSyntax(syntax.Syntax):
+    @staticmethod
+    def name():
+        return "range"
+
+    def load(self, fp):
+        """Parse query from a file-like object
+
+        Arguments:
+        - fp (file-like): query according to this syntax
+
+        Returns: MolQL
+        """
+        r = rangesBNF().parseFile(fp)
+        return r  # TODO broken; should return an Expression
+
+
+syntax.register_syntax(RangeSyntax())

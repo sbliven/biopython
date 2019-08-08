@@ -1,59 +1,82 @@
 """Parse MolQL queries from JSON syntax
 
 """
-
 import json
-from .parsing import Expression, MolQLFormatError
 from ... import __version__
+from . import syntax
 
 
-def parse_json(query):
-    """Parse a MolQL query from JSON format.
+class JSONSyntax(syntax.Syntax):
+    @staticmethod
+    def name():
+        return "json"
 
-    Arguments:
-    - json (string or file-like): json input
+    def loads(self, query):
+        return self.load_dict(json.loads(query))
 
-    Returns: MolQL
-    """
-    if isinstance(query, str):
-        jsonDict = json.loads(query)
-    else:
-        jsonDict = json.load(query)
+    def load(self, fp):
+        return self.load_dict(json.load(fp))
 
-    # Currently ignore source and version information
-    if "expression" not in jsonDict:
-        raise MolQLFormatError("Illegal MolQL query (JSON). Missing 'expression'")
+    def load_dict(self, jsonDict):
+        """Parse a MolQL query from JSON dictionary.
 
-    def parse_expression(node):
-        if isinstance(node, dict):
-            if "head" not in node:
-                raise MolQLFormatError("Illegal MolQL query (JSON). Missing 'head'")
-            if "args" not in node:
-                return Expression(node["head"])
+        Arguments:
+        - jsonDict (dict): raw dictionary representation of the JSON
+
+        Returns: Expression
+        """
+        # Currently ignore source and version information
+        if "expression" not in jsonDict:
+            raise syntax.MolQLFormatError("Illegal MolQL query (json). Missing 'expression'")
+
+        def parse_expression(node):
+            if isinstance(node, dict):
+                if "head" not in node:
+                    raise syntax.MolQLFormatError("Illegal MolQL query (json). Missing 'head'")
+                if "args" not in node:
+                    return syntax.Expression(node["head"])
+                else:
+                    if isinstance(node["args"], dict):
+                        return syntax.Expression(node["head"],
+                                                 {name: parse_expression(n)
+                                                  for name, n in node["args"].items()})
+                    elif isinstance(node["args"], list):
+                        return syntax.Expression(node["head"],
+                                                 {str(i): parse_expression(n)
+                                                  for i, n in enumerate(node["args"])})
+                    else:
+                        raise ValueError("Error Parsing MolQL (JSON): Unexpected args value")
+
             else:
-                return Expression(node["head"], [parse_expression(n) for n in node["args"]])
-        else:
-            return node  # leaf
+                return node  # leaf
 
-    return parse_expression(jsonDict["expression"])
+        return parse_expression(jsonDict["expression"])
 
+    def dump_dict(self, expr):
+        """Convert Query to JSON
 
-def to_json(molql, indent=None):
-    """Convert Query to JSON
+        Arguments:
+        - molql (Expression): query
+        Returns: (str)
+        """
+        def to_json_dict(tree):
+            d = {"head": tree.head}
+            if len(tree.args) > 0:
+                d["args"] = {label: to_json_dict(child) if isinstance(child, syntax.Expression) else child
+                             for label, child in tree.args.items()}
+            return d
 
-    Arguments:
-    - molql (MolQL): query
-    Returns: (str)
-    """
-    def to_json_dict(tree):
-        d = {"head": tree.head}
-        if len(tree.children) > 0:
-            d["args"] = [child._to_json_dict() if isinstance(child, Expression) else child
-                         for child in tree.children]
+        d = {"source": "BioPython %s" % __version__,
+             "version": "0.1.0",
+             "expression": to_json_dict(expr)
+             }
         return d
 
-    d = {"source": "BioPython %s" % __version__,
-         "version": "0.1.0",
-         "expression": to_json_dict(molql)
-         }
-    return json.dumps(d, indent=indent)
+    def dumps(self, expr, **kw):
+        return json.dumps(self.dump_dict(expr), **kw)
+
+    def dump(self, expr, fp, **kw):
+        json.dump(self.dump_dict(expr), fp, **kw)
+
+
+syntax.register_syntax(JSONSyntax())
