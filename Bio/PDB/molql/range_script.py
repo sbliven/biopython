@@ -5,7 +5,7 @@ try:
     import pyparsing as pp
 except ImportError:
     from Bio import MissingPythonDependencyError
-    raise MissingPythonDependencyError("Install pyparsing to use MolQL "
+    raise MissingPythonDependencyError("Install pyparsing to use MolQL 'range' scripts "
                                        "(e.g. pip install pyparsing)")
 
 from . import syntax

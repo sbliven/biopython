@@ -7,8 +7,9 @@
 import unittest
 import json
 from io import BytesIO
-from Bio.PDB.molql import MolQL
+from Bio.PDB.molql import MolQL, syntax
 from Bio.PDB.molql.range_script import rangesBNF, ResRange
+from Bio.PDB.molql.molql_script import molscriptBNF
 from Bio.PDB import PDBParser
 from Bio.PDB import PDBIO
 from Bio.PDB import Dice
@@ -170,18 +171,84 @@ class MolQLTests(unittest.TestCase):
 
         self.assertDictEqual(result_dict, expected_dict)
 
-
     def test_molql_lisp(self):
+        bnf = molscriptBNF()
+
+        expr = bnf.parseString("(f :a 1 :b 2)", True)[0]
+
+        self.assertEqual(type(expr), syntax.Expression)
+        self.assertEqual(expr.head, "f")
+        self.assertEqual(expr.args.keys(), ["a", "b"])
+        self.assertEqual(expr.args["a"], 1.)
+        self.assertEqual(expr.args["b"], 2.)
+
+        expr = bnf.parseString("(a 1 2)", True)[0]
+
+        self.assertEqual(type(expr), syntax.Expression)
+        self.assertEqual(expr.head, "a")
+        self.assertEqual(expr.args.keys(), [0, 1])
+        self.assertEqual(expr.args[0], 1.)
+        self.assertEqual(expr.args[1], 2.)
+
+        expr = bnf.parseString("(= 1 2)", True)[0]
+
+        self.assertEqual(type(expr), syntax.Expression)
+        self.assertEqual(expr.head, "=")
+        self.assertEqual(expr.args.keys(), [0, 1])
+        self.assertEqual(expr.args[0], 1.)
+        self.assertEqual(expr.args[1], 2.)
+
+        expr = bnf.parseString("(f)", True)[0]
+
+        self.assertEqual(type(expr), syntax.Expression)
+        self.assertEqual(expr.head, "f")
+        self.assertEqual(expr.args, {})
+
+        expr = bnf.parseString("(f (g))", True)[0]
+
+        self.assertEqual(type(expr), syntax.Expression)
+        self.assertEqual(expr.head, "f")
+        self.assertEqual(expr.args.keys(), [0])
+        self.assertEqual(expr.args[0].head, "g")
+        self.assertEqual(expr.args[0].args, {})
+
         lisp_example1 = """(structure.generator.atom-groups
-  :residue-test (core.rel.eq
-    (structure.atom-property.macromolecular.auth_comp_id)
-    ALA)
-  :atom-test (core.set.has
-    (core.type.set
-      (structure.type.element-symbol C)
-      (structure.type.element-symbol N))
-    (structure.atom-property.core.element-symbol)))
-"""
+        :residue-test (core.rel.eq
+            (structure.atom-property.macromolecular.auth_comp_id)
+            ALA)
+        :atom-test (core.set.has
+            (core.type.set
+                (structure.type.element-symbol C)
+                (structure.type.element-symbol N))
+            (structure.atom-property.core.element-symbol)))
+        """
+        expr = bnf.parseString(lisp_example1, True)[0]
+
+        self.assertEqual(expr.head, "structure.generator.atom-groups")
+        self.assertEqual(expr.args.keys(), ["residue-test", "atom-test"])
+        arg = expr.args['residue-test']
+        self.assertEqual(arg.head, "core.rel.eq")
+        self.assertEqual(arg.args.keys(), [0, 1])
+        self.assertEqual(arg.args[0].head, "structure.atom-property.macromolecular.auth_comp_id")
+        self.assertEqual(arg.args[0].args, {})
+        self.assertEqual(arg.args[1], "ALA")
+        arg = expr.args['atom-test']
+        self.assertEqual(arg.head, "core.set.has")
+        self.assertEqual(arg.args.keys(), [0, 1])
+        arg = expr.args['atom-test'].args[0]
+        self.assertEqual(arg.head, "core.type.set")
+        self.assertEqual(arg.args.keys(), [0, 1])
+        self.assertEqual(arg.args[0].head, "structure.type.element-symbol")
+        self.assertEqual(arg.args[0].args, {0: "C"})
+        self.assertEqual(arg.args[1].head, "structure.type.element-symbol")
+        self.assertEqual(arg.args[1].args, {0: "N"})
+        arg = expr.args['atom-test'].args[1]
+        self.assertEqual(arg.head, "structure.atom-property.core.element-symbol")
+        self.assertEqual(arg.args, {})
+
+        query = MolQL(lisp_example1, "molql")
+
+        self.assertEqual(type(query.expression), syntax.Expression)
 
 
 if __name__ == '__main__':
