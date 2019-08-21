@@ -1,8 +1,6 @@
 """Parse MolQL's lisp-like format
 
 """
-from . import syntax
-
 try:
     import pyparsing as pp
 except ImportError:
@@ -45,7 +43,7 @@ def molscriptBNF():
             args = dict()
             for i, pair in enumerate(t):
                 label, expr = pair
-                args[i if label is None else label] = expr#[0]
+                args[i if label is None else label] = expr
             print("Creating Arguments(%s)" % args)
             return args
 

@@ -250,6 +250,16 @@ class MolQLTests(unittest.TestCase):
 
         self.assertEqual(type(query.expression), syntax.Expression)
 
+    def test_structure(self):
+        # Use the same test cases as test_PDB_Dice
+        pdb_file = "PDB/2BEG.pdb"
+        parser = PDBParser()
+        structure = parser.get_structure("scr", pdb_file)
+
+        # All Atoms
+        query = MolQL("(structure.generator.atom-groups)", "molql")
+        fragments = [list(frag) for frag in query.apply(structure)]
+
 
 if __name__ == '__main__':
     runner = unittest.TextTestRunner(verbosity=2)

@@ -2,6 +2,8 @@
 """
 import warnings
 import re
+import abc
+from functools import wraps
 
 from ... import BiopythonWarning
 from .. import Select
@@ -9,6 +11,9 @@ from .. import extract_to_structure
 from . import syntax
 # Make sure all known syntax modules are loaded
 from . import json_script, molql_script, range_script
+# Load known symbols
+from . import core, structure
+from . import symbols
 
 
 class ChainSelector(Select):
@@ -53,10 +58,51 @@ class ChainSelector(Select):
             return 1
 
 
+class StructureContext(object):
+    """Tracks the application of a MolQL query to a single structure
+    """
+
+    def __init__(self, query, structure):
+        self.query = query
+        self.structure = structure
+
+    def _eval(self, expr):
+        """Evaluates an Expression in this context
+
+        Looks up implementations in the symbol table and evaluate them recursively.
+        """
+        if not isinstance(expr, syntax.Expression):
+            return expr
+
+        impl = symbols.get_symbol(expr.head)
+        posargs = {}
+        kwargs = {}
+        for k, v in expr.args:
+            try:
+                posargs[int(k)] = v
+            except ValueError:
+                kwargs[k] = v
+
+        if len(posargs) > 0:
+            maxarg = max(posargs.keys())
+            # Raises KeyError for non-sequential positional arguments
+            args_evaled = (self._eval(posargs[i]) for i in xrange(maxarg))
+        else:
+            args_evaled = []
+        kwargs_evaled = {k: self._eval(v) for k, v in kwargs}
+        return impl(self, *args_evaled, **kwargs_evaled)
+
+    def __call__(self):
+        return self._eval(self.query.expression)
+
+
 class MolQL(object):
     """Represent a molecular query. Queries can be created from a variety
     of selection syntaxes. Queries can then be applied to Bio.PDB.Structure
     objects to reduce to the selected substructure.
+
+    In their most general form, MolQL queries act on a set of structure
+    fragments (conceptually a list of Atom lists).
 
     Supported formats
     -----------------
@@ -102,8 +148,36 @@ class MolQL(object):
 
         self.expression = parser.loads(query)
 
+    def dice(self, structure):
+        """Evaluate query on a structure
+
+        Returns a set of Structures representing each fragment of the result
+
+        Args:
+        - structure (Bio.PDB.Structure): structure to filter
+
+        Returns:
+        Bio.PDB.Structure: result of the query
+        """
+        raise NotImplementedError()
+
+    def apply(self, structure):
+        """Low-level function to evaluate a query on a set of fragments.
+
+        Args:
+        - structure (Bio.PDB.Structure): structure to filter
+
+        Returns:
+        Iterable[Iterable[Atom]]: Set of all fragments
+        """
+        context = StructureContext(self, structure)
+        return context()
+
     def __call__(self, structure):
         """Evaluate query on a structure
+
+        If multiple fragments would be returned by the query, performs an
+        implicit union over all fragments to return a single structure.
 
         Args:
         - structure (Bio.PDB.Structure): structure to filter
