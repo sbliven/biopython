@@ -126,6 +126,10 @@ other optional Python dependencies, which can be installed later if needed:
 - mysqlclient, see https://github.com/PyMySQL/mysqlclient-python (optional)
   This is a fork of the older MySQLdb and is used by ``BioSQL`` to access a
   MySQL database. It is supported by PyPy.
+  
+- mmtf-python, see https://github.com/rcsb/mmtf-python (optional)
+  This provides support for the MMTF structure format and is used by
+  ``Bio.PDB.mmtf``.
 
 In addition there are a number of useful third party tools you may wish to
 install such as standalone NCBI BLAST, EMBOSS or ClustalW.
